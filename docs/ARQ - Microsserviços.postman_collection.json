@@ -299,7 +299,513 @@
     },
     {
       "name": "ms-vendas",
-      "item": []
+      "item": [
+        {
+          "name": "01 Consultar estoque do produto 1 (antes)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlEstoque}}/estoque/produto/1",
+              "host": [
+                "{{baseUrlEstoque}}"
+              ],
+              "path": [
+                "estoque",
+                "produto",
+                "1"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Estoque encontrado\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"saldoAntes\", pm.response.json().quantidade);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Registrar venda",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"clienteId\": 1,\n    \"itens\": [\n        {\n            \"produtoId\": 1,\n            \"quantidade\": 2\n        },\n        {\n            \"produtoId\": 2,\n            \"quantidade\": 3\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Orquestração: GET ms-clientes, GET ms-produtos (um por item), POST ms-estoque/saidas (um por item) e gravação da venda."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Venda criada (201)\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Cabeçalho Location presente\", () => pm.response.to.have.header(\"Location\"));",
+                  "const venda = pm.response.json();",
+                  "pm.test(\"Dados copiados de ms-clientes e ms-produtos\", () => {",
+                  "    pm.expect(venda.clienteNome).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(venda.itens[0].precoUnitario).to.be.above(0);",
+                  "    pm.expect(venda.status).to.eql(\"CONCLUIDA\");",
+                  "});",
+                  "pm.collectionVariables.set(\"vendaId\", venda.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Consultar estoque do produto 1 (depois)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlEstoque}}/estoque/produto/1",
+              "host": [
+                "{{baseUrlEstoque}}"
+              ],
+              "path": [
+                "estoque",
+                "produto",
+                "1"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const antes = Number(pm.collectionVariables.get(\"saldoAntes\"));",
+                  "pm.test(\"Estoque baixou 2 unidades\", () => pm.expect(pm.response.json().quantidade).to.eql(antes - 2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Buscar venda por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas/{{vendaId}}",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas",
+                "{{vendaId}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Venda encontrada (200)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Listar vendas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Lista retornada (200)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Listar vendas de um cliente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas?clienteId=1",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas"
+              ],
+              "query": [
+                {
+                  "key": "clienteId",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Todas as vendas são do cliente 1\", () => pm.response.json().forEach(v => pm.expect(v.clienteId).to.eql(1)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Erro - cliente inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"clienteId\": 999,\n    \"itens\": [\n        {\n            \"produtoId\": 1,\n            \"quantidade\": 1\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 - cliente não existe no ms-clientes\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Erro - produto inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"clienteId\": 1,\n    \"itens\": [\n        {\n            \"produtoId\": 999,\n            \"quantidade\": 1\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 - produto não existe no ms-produtos\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Erro - estoque insuficiente (estorna o item 1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"clienteId\": 2,\n    \"itens\": [\n        {\n            \"produtoId\": 1,\n            \"quantidade\": 1\n        },\n        {\n            \"produtoId\": 3,\n            \"quantidade\": 1000\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "O item 1 é baixado e o item 2 falha. O ms-vendas devolve o item 1 ao estoque (compensação). Confira com a requisição 03: o saldo do produto 1 não muda."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409 - estoque insuficiente\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Erro - dados inválidos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"clienteId\": null,\n    \"itens\": [\n        {\n            \"produtoId\": 1,\n            \"quantidade\": 0\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 - validação\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Cancelar venda",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas/{{vendaId}}/cancelamento",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas",
+                "{{vendaId}}",
+                "cancelamento"
+              ]
+            },
+            "description": "Devolve os itens ao ms-estoque (POST /estoque/entradas). Rode a requisição 01 depois para ver o saldo restaurado."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Venda cancelada (200)\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Status CANCELADA\", () => pm.expect(pm.response.json().status).to.eql(\"CANCELADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Erro - cancelar venda já cancelada",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas/{{vendaId}}/cancelamento",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas",
+                "{{vendaId}}",
+                "cancelamento"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409 - venda já cancelada\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Manual - venda com ms-estoque parado (espera 503)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlVendas}}/api/vendas",
+              "host": [
+                "{{baseUrlVendas}}"
+              ],
+              "path": [
+                "api",
+                "vendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"clienteId\": 1,\n    \"itens\": [\n        {\n            \"produtoId\": 2,\n            \"quantidade\": 1\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cenário manual, fora do Runner: pare o ms-estoque antes de enviar. O ms-vendas responde 503 e não grava a venda. Com o ms-estoque no ar, esta requisição registra uma venda normal (201)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Fluxo do orquestrador. Requer os quatro serviços rodando. Rode as requisições em ordem (ou a pasta inteira pelo Collection Runner)."
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrlClientes",
+      "value": "http://localhost:8084"
+    },
+    {
+      "key": "baseUrlProdutos",
+      "value": "http://localhost:8082"
+    },
+    {
+      "key": "baseUrlEstoque",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "baseUrlVendas",
+      "value": "http://localhost:8083"
+    },
+    {
+      "key": "vendaId",
+      "value": "1"
+    },
+    {
+      "key": "saldoAntes",
+      "value": ""
     }
   ]
 }
